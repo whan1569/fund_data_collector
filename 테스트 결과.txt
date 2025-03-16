@@ -1,0 +1,48 @@
+# 데이터 수집 모듈 테스트 결과 (2024-03-16)
+
+## 1. fetch_stocks.py (Yahoo Finance API)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 주요 지수 (S&P 500, 다우존스, 나스닥, FTSE, 닛케이)
+- 저장 위치: fund_bot/data/stocks.parquet
+- 특이사항: 없음
+
+## 2. fetch_commodities.py (Yahoo Finance API)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 원자재 ETF (GLD, USO, SLV, CPER, JJN, PALL, JO, CORN, WEAT)
+- 저장 위치: fund_bot/data/commodities.parquet
+- 특이사항: Quandl API에서 Yahoo Finance API로 변경하여 ETF 데이터로 대체
+
+## 3. fetch_bonds.py (FRED API)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 국채 및 회사채 금리
+- 저장 위치: fund_bot/data/bonds.parquet
+- 특이사항: FRED API 키 정상 작동 확인
+
+## 4. fetch_forex.py (Yahoo Finance)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 주요 통화쌍 환율 (EUR/USD, USD/JPY, GBP/USD, USD/CHF, AUD/USD)
+- 저장 위치: fund_bot/data/forex.parquet
+- 특이사항: Forex-Python API에서 Yahoo Finance API로 변경하여 안정적으로 데이터 수집 가능
+
+## 5. fetch_crypto.py (Binance API)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 주요 암호화폐 가격
+- 저장 위치: fund_bot/data/crypto.parquet
+- 특이사항: Binance API 키 정상 작동 확인
+
+## 6. fetch_real_estate.py (Yahoo Finance API)
+- 상태: ✅ 정상 작동
+- 수집 데이터: 부동산 ETF (VNQ, IYR, SCHH, RWR, REET)
+- 저장 위치: fund_bot/data/real_estate.parquet
+- 특이사항: 없음
+
+# 다음 단계
+1. fetch_forex.py 모듈 수정 필요
+   - Yahoo Finance API를 사용하여 환율 데이터 수집하도록 변경 검토
+   - 주요 통화쌍 ETF 사용 가능성 검토 (예: FXE, FXB, FXY 등)
+2. 전체 데이터 품질 검증
+   - 수집된 데이터의 누락값, 이상값 확인
+   - 시계열 연속성 확인
+3. 자동화 스크립트 작성
+   - 모든 모듈을 순차적으로 실행하는 스크립트 필요
+   - 에러 발생 시 재시도 로직 추가

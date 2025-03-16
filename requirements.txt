@@ -1,0 +1,7 @@
+yfinance==0.2.36
+pandas==2.1.4
+python-dotenv==1.0.0
+pyarrow==14.0.1
+fredapi==0.5.1
+python-binance==1.0.19
+forex-python==1.8 

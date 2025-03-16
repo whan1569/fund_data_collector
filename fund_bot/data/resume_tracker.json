@@ -1,0 +1,16 @@
+{
+    "commodities": {
+        "last_fetch_date": "2025-03-16",
+        "symbols": [
+            "GLD",
+            "USO",
+            "SLV",
+            "CPER",
+            "JJN",
+            "PALL",
+            "JO",
+            "CORN",
+            "WEAT"
+        ]
+    }
+}
