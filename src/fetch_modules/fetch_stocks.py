@@ -7,16 +7,12 @@ import json
 import logging
 from pathlib import Path
 import time
-from .config import data_dir, TRACKER_FILE
+from .config import data_dir, TRACKER_FILE, config, log_dir
 
 # 환경 변수 로드
 load_dotenv()
 
 # 로깅 설정
-current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent
-log_dir = project_root / 'logs'
-log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     filename=str(log_dir / 'error_log.txt'),
     level=logging.INFO,
@@ -27,9 +23,6 @@ class StockDataFetcher:
     def __init__(self):
         self.data_dir = data_dir
         self.tracker_file = TRACKER_FILE
-        
-        # 디렉토리 생성
-        self.data_dir.mkdir(parents=True, exist_ok=True)
         
         # 진행 상태 추적 파일 초기화
         if not self.tracker_file.exists():
@@ -87,7 +80,11 @@ class StockDataFetcher:
             for symbol in tracker['stocks']['symbols']:
                 try:
                     ticker = yf.Ticker(symbol)
-                    df = ticker.history(start=start_date, end=end_date, interval='1mo')
+                    df = ticker.history(
+                        start=start_date,
+                        end=end_date,
+                        interval=config.get_yfinance_interval()
+                    )
                     
                     if not df.empty:
                         df = df.reset_index()

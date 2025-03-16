@@ -14,25 +14,10 @@ load_dotenv()
 current_dir = Path(__file__).parent
 project_root = current_dir.parent
 
-# 디렉토리 설정
-data_dir = project_root / 'datas'
-log_dir = project_root / 'logs'
-report_dir = project_root / 'reports'
-
-# 디렉토리 생성
-for directory in [data_dir, log_dir, report_dir]:
-    directory.mkdir(parents=True, exist_ok=True)
-
-# 로깅 설정
-logging.basicConfig(
-    filename=str(log_dir / 'collection_log.txt'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# 데이터 수집 모듈 임포트
+# 데이터 수집 모듈 임포트를 위한 경로 추가
 sys.path.append(str(current_dir))
 
+from fetch_modules.config import data_dir, log_dir, report_dir
 from fetch_modules.fetch_stocks import StockDataFetcher
 from fetch_modules.fetch_commodities import CommodityDataFetcher
 from fetch_modules.fetch_bonds import BondDataFetcher
@@ -41,33 +26,57 @@ from fetch_modules.fetch_crypto import CryptoDataFetcher
 from fetch_modules.fetch_real_estate import RealEstateDataFetcher
 
 def parse_time_interval(interval_str):
-    """시간 간격 문자열을 초 단위로 변환"""
+    """시간 간격 문자열을 데이터 수집 간격 형식으로 변환"""
     if not interval_str:
-        return 5  # 기본값 5초
+        return '1mo'  # 기본값
     
     try:
         value = float(interval_str[:-1])
         unit = interval_str[-1].upper()
         
-        if unit == 'S':  # 초
-            return int(value)
-        elif unit == 'M':  # 분
-            return int(value * 60)
-        elif unit == 'H':  # 시간
-            return int(value * 3600)
-        elif unit == 'D':  # 일
-            return int(value * 86400)
-        elif unit == 'W':  # 주
-            return int(value * 604800)
-        elif unit == 'MO':  # 달
-            return int(value * 2592000)  # 30일 기준
-        elif unit == 'Y':  # 년
-            return int(value * 31536000)
-        else:
-            raise ValueError(f"지원하지 않는 시간 단위입니다: {unit}")
+        # 데이터 수집 간격으로 변환
+        if unit == 'S':  # 초 -> 분
+            if value < 60:
+                return '1m'
+            value = value / 60
+            unit = 'M'
+        
+        if unit == 'M':  # 분
+            if value < 60:
+                return f"{int(value)}m"
+            value = value / 60
+            unit = 'H'
+            
+        if unit == 'H':  # 시간 -> 일
+            if value < 24:
+                return f"{int(value)}h"
+            value = value / 24
+            unit = 'D'
+            
+        if unit == 'D':  # 일
+            if value < 7:
+                return f"{int(value)}d"
+            elif value < 30:
+                return '1w'
+            else:
+                return '1mo'
+                
+        if unit == 'W':  # 주
+            if value < 4:
+                return '1w'
+            else:
+                return '1mo'
+                
+        if unit == 'MO':  # 월
+            return f"{int(value)}mo"
+            
+        if unit == 'Y':  # 년
+            return f"{int(value*12)}mo"
+            
+        return '1mo'  # 기본값
+        
     except (ValueError, IndexError):
-        print(f"잘못된 시간 형식입니다. 기본값 5초를 사용합니다.")
-        return 5
+        return '1mo'  # 기본값
 
 class DataCollectionManager:
     def __init__(self, start_date=None, end_date=None, save_interval=5):
@@ -91,6 +100,17 @@ class DataCollectionManager:
             self.end_date = end_date
             
         self.save_interval = save_interval
+        # 저장 간격의 단위를 저장
+        units = {
+            1: 'S', 60: 'M', 3600: 'H', 86400: 'D',
+            604800: 'W', 2592000: 'MO', 31536000: 'Y'
+        }
+        for seconds, unit in units.items():
+            if save_interval % seconds == 0 and save_interval // seconds < 60:
+                self.interval_str = f"{save_interval // seconds}{unit}"
+                break
+        else:
+            self.interval_str = f"{save_interval}S"
         
         # 데이터 수집기 초기화
         self.collectors = {
@@ -136,11 +156,15 @@ class DataCollectionManager:
 
     def save_data_range(self):
         """데이터 범위 정보 저장"""
+        from fetch_modules.config import config  # config 임포트
+        
         range_file = data_dir / 'data_range.json'
         range_info = {
             'start_date': self.start_date,
             'end_date': self.end_date,
             'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'data_collection_frequency': config.interval,  # config에서 interval 가져오기
+            'api_call_interval': f"{self.save_interval}S",  # API 호출 간격
             'markets': {}
         }
         
@@ -197,22 +221,30 @@ class DataCollectionManager:
 
 def main():
     try:
+        from fetch_modules.config import config
+        
         # 사용자 입력 받기
         print("데이터 수집 설정을 입력하세요 (기본값을 사용하려면 Enter를 누르세요):")
         print("시간 단위: S(초), M(분), H(시간), D(일), W(주), MO(달), Y(년)")
+        print("예시: 1m(1분), 1h(1시간), 1d(1일), 1w(1주), 1mo(1달)")
+        
         start_date = input("시작일 (YYYY-MM-DD): ").strip() or None
         end_date = input("종료일 (YYYY-MM-DD): ").strip() or None
-        save_interval = input("저장 간격 (예: 5S, 1M, 1H, 1D, 1W, 1MO, 1Y): ").strip()
-        save_interval = parse_time_interval(save_interval)
+        interval = input("데이터 수집 간격 (예: 5S, 1M, 1H, 1D, 1W, 1MO, 1Y): ").strip()
+        
+        # 전역 설정에 적용
+        config.start_date = start_date
+        config.end_date = end_date
+        config.interval = parse_time_interval(interval)
         
         # 데이터 수집 실행
         manager = DataCollectionManager(
             start_date=start_date,
             end_date=end_date,
-            save_interval=save_interval
+            save_interval=5  # API 호출 간격은 5초로 고정
         )
         manager.collect_all_data()
-        manager.save_data_range()  # 데이터 범위 정보 저장
+        manager.save_data_range()
         manager.generate_report()
         print("\n데이터 수집이 완료되었습니다. 보고서를 확인해주세요.")
         

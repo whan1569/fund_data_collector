@@ -7,7 +7,7 @@ import json
 import logging
 from pathlib import Path
 import time
-from .config import data_dir, TRACKER_FILE
+from .config import data_dir, TRACKER_FILE, config
 
 # 환경 변수 로드
 load_dotenv()
@@ -87,7 +87,7 @@ class RealEstateDataFetcher:
             for symbol in tracker['real_estate']['symbols']:
                 try:
                     ticker = yf.Ticker(symbol)
-                    df = ticker.history(start=start_date, end=end_date, interval='1mo')
+                    df = ticker.history(start=start_date, end=end_date, interval=config.interval)
                     
                     if not df.empty:
                         df = df.reset_index()

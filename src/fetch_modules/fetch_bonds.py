@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 import time
 import fredapi
-from .config import data_dir, TRACKER_FILE
+from .config import data_dir, TRACKER_FILE, config
 
 # 환경 변수 로드
 load_dotenv()
@@ -80,12 +80,28 @@ class BondDataFetcher:
             if not end_date:
                 end_date = datetime.now().strftime('%Y-%m-%d')
 
+            # FRED API frequency 매핑
+            fred_frequency = {
+                '1m': 'm',     # 월간
+                '1d': 'd',     # 일간
+                '1w': 'w',     # 주간
+                '1mo': 'm',    # 월간
+                '3mo': 'q',    # 분기
+                '6mo': 'sa',   # 반기
+                '1y': 'a'      # 연간
+            }.get(config.interval, 'd')  # 기본값은 일간
+
             all_data = []
             
             # 각 시리즈별 데이터 수집
             for series in tracker['bonds']['series']:
                 try:
-                    df = self.fred.get_series(series, observation_start=start_date, observation_end=end_date)
+                    df = self.fred.get_series(
+                        series,
+                        observation_start=start_date,
+                        observation_end=end_date,
+                        frequency=config.get_fred_interval()  # FRED API 형식으로 변환
+                    )
                     
                     if not df.empty:
                         df = df.reset_index()

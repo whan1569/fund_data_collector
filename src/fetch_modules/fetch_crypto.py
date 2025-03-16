@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from binance.client import Client
 import time
-from .config import data_dir, TRACKER_FILE
+from .config import data_dir, TRACKER_FILE, config
 
 # 환경 변수 로드
 load_dotenv()
@@ -94,9 +94,32 @@ class CryptoDataFetcher:
             # 각 암호화폐별 데이터 수집
             for symbol in tracker['crypto']['symbols']:
                 try:
+                    # Binance API interval 형식으로 변환
+                    binance_interval = {
+                        '1M': Client.KLINE_INTERVAL_1MINUTE,
+                        '3M': Client.KLINE_INTERVAL_3MINUTE,
+                        '5M': Client.KLINE_INTERVAL_5MINUTE,
+                        '15M': Client.KLINE_INTERVAL_15MINUTE,
+                        '30M': Client.KLINE_INTERVAL_30MINUTE,
+                        '1H': Client.KLINE_INTERVAL_1HOUR,
+                        '2H': Client.KLINE_INTERVAL_2HOUR,
+                        '4H': Client.KLINE_INTERVAL_4HOUR,
+                        '6H': Client.KLINE_INTERVAL_6HOUR,
+                        '8H': Client.KLINE_INTERVAL_8HOUR,
+                        '12H': Client.KLINE_INTERVAL_12HOUR,
+                        '1D': Client.KLINE_INTERVAL_1DAY,
+                        '3D': Client.KLINE_INTERVAL_3DAY,
+                        '1W': Client.KLINE_INTERVAL_1WEEK,
+                        '1M': Client.KLINE_INTERVAL_1MONTH
+                    }.get(config.get_binance_interval())  # 매핑이 없으면 None 반환
+                    
+                    if binance_interval is None:
+                        logging.error(f"Unsupported interval for Binance API: {config.interval}")
+                        continue
+
                     klines = self.client.get_historical_klines(
                         symbol,
-                        Client.KLINE_INTERVAL_1MONTH,
+                        binance_interval,
                         start_ts,
                         end_ts
                     )
