@@ -7,12 +7,15 @@ import logging
 from pathlib import Path
 from binance.client import Client
 import time
+from .config import data_dir, TRACKER_FILE
 
 # 환경 변수 로드
 load_dotenv()
 
 # 로깅 설정
-log_dir = Path('fund_bot/logs')
+current_dir = Path(__file__).parent
+project_root = current_dir.parent.parent
+log_dir = project_root / 'logs'
 log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     filename=str(log_dir / 'error_log.txt'),
@@ -25,8 +28,8 @@ class CryptoDataFetcher:
         self.api_key = os.getenv('BINANCE_API_KEY')
         self.api_secret = os.getenv('BINANCE_API_SECRET')
         self.client = Client(self.api_key, self.api_secret)
-        self.data_dir = Path('fund_bot/data')
-        self.tracker_file = self.data_dir / 'resume_tracker.json'
+        self.data_dir = data_dir
+        self.tracker_file = TRACKER_FILE
         
         # 디렉토리 생성
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -99,23 +102,27 @@ class CryptoDataFetcher:
                     )
                     
                     if klines:
+                        # 데이터 전처리
                         df = pd.DataFrame(klines, columns=[
-                            'timestamp', 'open', 'high', 'low', 'close', 'volume',
-                            'close_time', 'quote_volume', 'trades', 'taker_buy_base',
-                            'taker_buy_quote', 'ignore'
+                            'timestamp', 'open', 'high', 'low', 'close',
+                            'volume', 'close_time', 'quote_volume', 'trades',
+                            'buy_base_volume', 'buy_quote_volume', 'ignore'
                         ])
                         
-                        # 데이터 전처리
-                        df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        # 필요한 컬럼만 선택
+                        df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                        
+                        # 데이터 타입 변환
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        df['open'] = pd.to_numeric(df['open'], errors='coerce')
+                        df['high'] = pd.to_numeric(df['high'], errors='coerce')
+                        df['low'] = pd.to_numeric(df['low'], errors='coerce')
+                        df['close'] = pd.to_numeric(df['close'], errors='coerce')
+                        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+                        
+                        # 컬럼명 변경
+                        df = df.rename(columns={'timestamp': 'date'})
                         df['symbol'] = symbol
-                        df = df[['date', 'symbol', 'open', 'high', 'low', 'close', 'volume']]
-                        df = df.astype({
-                            'open': float,
-                            'high': float,
-                            'low': float,
-                            'close': float,
-                            'volume': float
-                        })
                         
                         all_data.append(df)
                         logging.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
@@ -135,6 +142,11 @@ class CryptoDataFetcher:
                     existing_df = pd.read_parquet(existing_file)
                     df = pd.concat([existing_df, df]).drop_duplicates()
                 
+                # 숫자형 데이터 변환
+                numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+                for col in numeric_columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                
                 # Parquet 파일로 저장
                 df.to_parquet(self.data_dir / 'crypto.parquet')
                 
@@ -149,6 +161,16 @@ class CryptoDataFetcher:
 
         except Exception as e:
             logging.error(f"Error in fetch_data: {str(e)}")
+            return False
+
+    def save_data(self, data):
+        """데이터 저장"""
+        try:
+            # 데이터 저장
+            data.to_parquet(self.data_dir / 'crypto.parquet')
+            return True
+        except Exception as e:
+            logging.error(f"Error saving crypto data: {str(e)}")
             return False
 
 if __name__ == "__main__":

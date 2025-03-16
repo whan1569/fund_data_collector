@@ -7,12 +7,15 @@ import logging
 from pathlib import Path
 import time
 import fredapi
+from .config import data_dir, TRACKER_FILE
 
 # 환경 변수 로드
 load_dotenv()
 
 # 로깅 설정
-log_dir = Path('fund_bot/logs')
+current_dir = Path(__file__).parent
+project_root = current_dir.parent.parent
+log_dir = project_root / 'logs'
 log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     filename=str(log_dir / 'error_log.txt'),
@@ -24,11 +27,8 @@ class BondDataFetcher:
     def __init__(self):
         self.api_key = os.getenv('FRED_API_KEY')
         self.fred = fredapi.Fred(api_key=self.api_key)
-        self.data_dir = Path('fund_bot/data')
-        self.tracker_file = self.data_dir / 'resume_tracker.json'
-        
-        # 디렉토리 생성
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir = data_dir
+        self.tracker_file = TRACKER_FILE
         
         # 진행 상태 추적 파일 초기화
         if not self.tracker_file.exists():
@@ -123,6 +123,16 @@ class BondDataFetcher:
 
         except Exception as e:
             logging.error(f"Error in fetch_data: {str(e)}")
+            return False
+
+    def save_data(self, data):
+        """데이터 저장"""
+        try:
+            # 데이터 저장
+            data.to_parquet(self.data_dir / 'bonds.parquet')
+            return True
+        except Exception as e:
+            logging.error(f"Error saving bonds data: {str(e)}")
             return False
 
 if __name__ == "__main__":

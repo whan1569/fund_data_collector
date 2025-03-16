@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 import time
+from .config import data_dir, TRACKER_FILE
 
 # 환경 변수 로드
 load_dotenv()
@@ -22,8 +23,8 @@ logging.basicConfig(
 
 class CommodityDataFetcher:
     def __init__(self):
-        self.data_dir = Path('fund_bot/data')
-        self.tracker_file = self.data_dir / 'resume_tracker.json'
+        self.data_dir = data_dir
+        self.tracker_file = TRACKER_FILE
         
         # 디렉토리 생성
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -38,15 +39,10 @@ class CommodityDataFetcher:
             'commodities': {
                 'last_fetch_date': None,
                 'symbols': [
-                    'GLD',   # 금
-                    'USO',   # 원유
-                    'SLV',   # 은
-                    'CPER',  # 구리
-                    'JJN',   # 니켈
-                    'PALL',  # 팔라듐
-                    'JO',    # 커피
-                    'CORN',  # 옥수수
-                    'WEAT'   # 밀
+                    'GLD',   # 금 (가장 큰 원자재 ETF)
+                    'USO',   # 원유 (에너지 시장 대표)
+                    'SLV',   # 은 (귀금속 시장 대표)
+                    'DBC'    # 원자재 종합 (전체 원자재 시장 대표)
                 ]
             }
         }
@@ -71,8 +67,7 @@ class CommodityDataFetcher:
                 tracker['commodities'] = {
                     'last_fetch_date': None,
                     'symbols': [
-                        'GLD', 'USO', 'SLV', 'CPER', 'JJN',
-                        'PALL', 'JO', 'CORN', 'WEAT'
+                        'GLD', 'USO', 'SLV', 'DBC'
                     ]
                 }
             last_fetch = tracker['commodities']['last_fetch_date']
@@ -134,6 +129,16 @@ class CommodityDataFetcher:
 
         except Exception as e:
             logging.error(f"Error in fetch_data: {str(e)}")
+            return False
+
+    def save_data(self, data):
+        """데이터 저장"""
+        try:
+            # 데이터 저장
+            data.to_parquet(self.data_dir / 'commodities.parquet')
+            return True
+        except Exception as e:
+            logging.error(f"Error saving commodities data: {str(e)}")
             return False
 
 if __name__ == "__main__":
