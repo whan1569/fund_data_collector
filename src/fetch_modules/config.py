@@ -20,11 +20,30 @@ for directory in [data_dir, log_dir, report_dir]:
     directory.mkdir(parents=True, exist_ok=True)
 
 # 로깅 설정
-logging.basicConfig(
-    filename=str(log_dir / 'error_log.txt'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+def setup_logging():
+    """중앙 로깅 설정"""
+    logging.basicConfig(
+        filename=str(log_dir / 'error_log.txt'),
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        encoding='utf-8'
+    )
+
+def get_logger(module_name: str) -> logging.Logger:
+    """
+    모듈별 로거 가져오기
+    
+    Args:
+        module_name: 모듈 이름 (예: 'fetch_stocks', 'fetch_bonds' 등)
+    
+    Returns:
+        logging.Logger: 설정된 로거 객체
+    """
+    logger = logging.getLogger(module_name)
+    return logger
+
+# 로깅 초기 설정 실행
+setup_logging()
 
 # 공통 설정
 TRACKER_FILE = data_dir / 'resume_tracker.json'

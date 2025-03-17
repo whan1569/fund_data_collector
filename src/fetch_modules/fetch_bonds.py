@@ -6,27 +6,19 @@ import json
 import logging
 from pathlib import Path
 import time
-import fredapi
-from .config import data_dir, TRACKER_FILE, config
+from fredapi import Fred
+from .config import data_dir, TRACKER_FILE, config, get_logger
 
 # 환경 변수 로드
 load_dotenv()
 
-# 로깅 설정
-current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent
-log_dir = project_root / 'logs'
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    filename=str(log_dir / 'error_log.txt'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# 모듈별 로거 가져오기
+logger = get_logger('fetch_bonds')
 
 class BondDataFetcher:
     def __init__(self):
         self.api_key = os.getenv('FRED_API_KEY')
-        self.fred = fredapi.Fred(api_key=self.api_key)
+        self.fred = Fred(api_key=self.api_key)
         self.data_dir = data_dir
         self.tracker_file = TRACKER_FILE
         
@@ -108,11 +100,11 @@ class BondDataFetcher:
                         df.columns = ['date', 'value']
                         df['series'] = series
                         all_data.append(df)
-                        logging.info(f"Successfully fetched {series} from {start_date} to {end_date}")
+                        logger.info(f"Successfully fetched {series} from {start_date} to {end_date}")
                         time.sleep(1)  # API 제한 고려
                     
                 except Exception as e:
-                    logging.error(f"Error fetching {series}: {str(e)}")
+                    logger.error(f"Error fetching {series}: {str(e)}")
                     continue
 
             if all_data:
@@ -132,13 +124,13 @@ class BondDataFetcher:
                 tracker['bonds']['last_fetch_date'] = end_date
                 self._save_tracker(tracker)
                 
-                logging.info(f"Successfully saved bonds data from {start_date} to {end_date}")
+                logger.info(f"Successfully saved bonds data from {start_date} to {end_date}")
                 return True
             
             return False
 
         except Exception as e:
-            logging.error(f"Error in fetch_data: {str(e)}")
+            logger.error(f"Error in fetch_data: {str(e)}")
             return False
 
     def save_data(self, data):
@@ -148,7 +140,7 @@ class BondDataFetcher:
             data.to_parquet(self.data_dir / 'bonds.parquet')
             return True
         except Exception as e:
-            logging.error(f"Error saving bonds data: {str(e)}")
+            logger.error(f"Error saving bonds data: {str(e)}")
             return False
 
 if __name__ == "__main__":

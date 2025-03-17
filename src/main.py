@@ -17,13 +17,16 @@ project_root = current_dir.parent
 # 데이터 수집 모듈 임포트를 위한 경로 추가
 sys.path.append(str(current_dir))
 
-from fetch_modules.config import data_dir, log_dir, report_dir
+from fetch_modules.config import data_dir, log_dir, report_dir, get_logger
 from fetch_modules.fetch_stocks import StockDataFetcher
 from fetch_modules.fetch_commodities import CommodityDataFetcher
 from fetch_modules.fetch_bonds import BondDataFetcher
 from fetch_modules.fetch_forex import ForexDataFetcher
 from fetch_modules.fetch_crypto import CryptoDataFetcher
 from fetch_modules.fetch_real_estate import RealEstateDataFetcher
+
+# 메인 로거 가져오기
+logger = get_logger('main')
 
 def parse_time_interval(interval_str):
     """시간 간격 문자열을 데이터 수집 간격 형식으로 변환"""
@@ -138,10 +141,10 @@ class DataCollectionManager:
                 
                 if success:
                     print(f"✓ {market} 데이터 수집 완료")
-                    logging.info(f"Successfully collected {market} data")
+                    logger.info(f"Successfully collected {market} data")
                 else:
                     print(f"✗ {market} 데이터 수집 실패")
-                    logging.error(f"Failed to collect {market} data")
+                    logger.error(f"Failed to collect {market} data")
                 
                 self.completed_markets += 1
                 print(f"진행률: {self.completed_markets}/{self.total_markets} ({(self.completed_markets/self.total_markets*100):.1f}%)")
@@ -151,7 +154,7 @@ class DataCollectionManager:
                 
             except Exception as e:
                 print(f"✗ {market} 데이터 수집 중 오류 발생: {str(e)}")
-                logging.error(f"Error in {market} data collection: {str(e)}")
+                logger.error(f"Error in {market} data collection: {str(e)}")
                 continue
 
     def save_data_range(self):
@@ -249,7 +252,7 @@ def main():
         print("\n데이터 수집이 완료되었습니다. 보고서를 확인해주세요.")
         
     except Exception as e:
-        logging.error(f"Error in main execution: {str(e)}")
+        logger.error(f"Error in main execution: {str(e)}")
         print(f"오류가 발생했습니다: {str(e)}")
 
 if __name__ == "__main__":

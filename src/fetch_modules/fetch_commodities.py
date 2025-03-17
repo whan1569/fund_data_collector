@@ -7,19 +7,13 @@ import json
 import logging
 from pathlib import Path
 import time
-from .config import data_dir, TRACKER_FILE, config
+from .config import data_dir, TRACKER_FILE, config, get_logger
 
 # 환경 변수 로드
 load_dotenv()
 
-# 로깅 설정
-log_dir = Path('fund_bot/logs')
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    filename=str(log_dir / 'error_log.txt'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# 모듈별 로거 가져오기
+logger = get_logger('fetch_commodities')
 
 class CommodityDataFetcher:
     def __init__(self):
@@ -90,11 +84,11 @@ class CommodityDataFetcher:
                         df = df.reset_index()
                         df['symbol'] = symbol
                         all_data.append(df)
-                        logging.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
+                        logger.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
                         time.sleep(1)  # API 제한 고려
                     
                 except Exception as e:
-                    logging.error(f"Error fetching {symbol}: {str(e)}")
+                    logger.error(f"Error fetching {symbol}: {str(e)}")
                     continue
 
             if all_data:
@@ -122,13 +116,13 @@ class CommodityDataFetcher:
                 tracker['commodities']['last_fetch_date'] = end_date
                 self._save_tracker(tracker)
                 
-                logging.info(f"Successfully saved commodities data from {start_date} to {end_date}")
+                logger.info(f"Successfully saved commodities data from {start_date} to {end_date}")
                 return True
             
             return False
 
         except Exception as e:
-            logging.error(f"Error in fetch_data: {str(e)}")
+            logger.error(f"Error in fetch_data: {str(e)}")
             return False
 
     def save_data(self, data):
@@ -138,7 +132,7 @@ class CommodityDataFetcher:
             data.to_parquet(self.data_dir / 'commodities.parquet')
             return True
         except Exception as e:
-            logging.error(f"Error saving commodities data: {str(e)}")
+            logger.error(f"Error saving commodities data: {str(e)}")
             return False
 
 if __name__ == "__main__":

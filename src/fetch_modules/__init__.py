@@ -8,6 +8,7 @@ from .fetch_bonds import BondDataFetcher
 from .fetch_forex import ForexDataFetcher
 from .fetch_crypto import CryptoDataFetcher
 from .fetch_real_estate import RealEstateDataFetcher
+from .config import get_logger
 
 __all__ = [
     'StockDataFetcher',
@@ -38,6 +39,9 @@ report_dir = project_root / 'reports'
 # 디렉토리 생성
 for directory in [data_dir, log_dir, report_dir]:
     directory.mkdir(parents=True, exist_ok=True)
+
+# 모듈별 로거 가져오기
+logger = get_logger('fetch_modules')
 
 # 로깅 설정
 logging.basicConfig(

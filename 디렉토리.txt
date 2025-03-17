@@ -1,0 +1,69 @@
+# fund_bot 프로젝트 디렉토리 구조
+fund_bot/
+└── fund_data_collector/           # 메인 프로젝트 디렉토리
+    ├── src/                       # 소스 코드 디렉토리
+    │   ├── main.py               # 메인 실행 파일
+    │   └── fetch_modules/         # 데이터 수집 모듈 디렉토리
+    │       ├── __init__.py
+    │       ├── config.py         # 설정 및 경로 관리
+    │       ├── fetch_stocks.py   # 주식 데이터 수집
+    │       ├── fetch_bonds.py    # 채권 데이터 수집
+    │       ├── fetch_commodities.py  # 원자재 데이터 수집
+    │       ├── fetch_crypto.py   # 암호화폐 데이터 수집
+    │       ├── fetch_forex.py    # 외환 데이터 수집
+    │       └── fetch_real_estate.py  # 부동산 데이터 수집
+    ├── datas/                    # 데이터 저장 디렉토리
+    │   ├── stocks.parquet       # 주식 데이터
+    │   ├── bonds.parquet       # 채권 데이터
+    │   ├── commodities.parquet # 원자재 데이터
+    │   ├── crypto.parquet     # 암호화폐 데이터
+    │   ├── forex.parquet      # 외환 데이터
+    │   ├── real_estate.parquet # 부동산 데이터
+    │   ├── data_range.json    # 데이터 수집 범위 정보
+    │   └── resume_tracker.json # 데이터 수집 진행 상태 추적
+    ├── logs/                    # 로그 파일 디렉토리
+    │   └── error_log.txt       # 에러 로그
+    └── reports/                 # 보고서 디렉토리
+        └── collection_report_YYYYMMDD.txt  # 일일 수집 보고서
+
+# 모듈별 데이터 생성 정리
+
+1. config.py
+   - 생성 디렉토리: datas/, logs/, reports/
+   - 역할: 기본 디렉토리 구조 생성 및 관리
+
+2. main.py
+   - 생성 파일: reports/collection_report_YYYYMMDD.txt
+   - 생성 파일: datas/data_range.json
+   - 역할: 전체 데이터 수집 과정 관리 및 보고서 생성
+
+3. fetch_stocks.py
+   - 생성 파일: datas/stocks.parquet
+   - 데이터 출처: Yahoo Finance API
+
+4. fetch_bonds.py
+   - 생성 파일: datas/bonds.parquet
+   - 데이터 출처: FRED API
+
+5. fetch_commodities.py
+   - 생성 파일: datas/commodities.parquet
+   - 데이터 출처: Yahoo Finance API
+
+6. fetch_crypto.py
+   - 생성 파일: datas/crypto.parquet
+   - 데이터 출처: Binance API
+
+7. fetch_forex.py
+   - 생성 파일: datas/forex.parquet
+   - 데이터 출처: Yahoo Finance API
+
+8. fetch_real_estate.py
+   - 생성 파일: datas/real_estate.parquet
+   - 데이터 출처: 부동산 관련 API
+
+# 주의사항
+- 모든 데이터 파일은 .parquet 형식으로 저장됨
+- 로그는 logs/error_log.txt에 자동 기록
+- 데이터 수집 진행 상태는 datas/resume_tracker.json에서 관리
+- 데이터 수집 범위 정보는 datas/data_range.json에서 관리
+- 일일 수집 보고서는 reports/ 디렉토리에 날짜별로 생성

@@ -7,21 +7,13 @@ import logging
 from pathlib import Path
 from binance.client import Client
 import time
-from .config import data_dir, TRACKER_FILE, config
+from .config import data_dir, TRACKER_FILE, config, get_logger
 
 # 환경 변수 로드
 load_dotenv()
 
-# 로깅 설정
-current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent
-log_dir = project_root / 'logs'
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    filename=str(log_dir / 'error_log.txt'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# 모듈별 로거 가져오기
+logger = get_logger('fetch_crypto')
 
 class CryptoDataFetcher:
     def __init__(self):
@@ -68,6 +60,16 @@ class CryptoDataFetcher:
     def fetch_data(self, start_date=None, end_date=None):
         """암호화폐 데이터 수집"""
         try:
+            if not self.api_key or not self.api_secret:
+                logger.error("Binance API credentials not found")
+                return False
+
+            # 바이낸스 설립일 체크 (2017년 7월)
+            binance_launch_date = '2017-07-01'
+            if start_date and start_date < binance_launch_date:
+                logger.warning(f"Requested start date ({start_date}) is before Binance launch date ({binance_launch_date}). Adjusting start date.")
+                start_date = binance_launch_date
+
             tracker = self._load_tracker()
             if 'crypto' not in tracker:
                 tracker['crypto'] = {
@@ -96,27 +98,23 @@ class CryptoDataFetcher:
                 try:
                     # Binance API interval 형식으로 변환
                     binance_interval = {
-                        '1M': Client.KLINE_INTERVAL_1MINUTE,
-                        '3M': Client.KLINE_INTERVAL_3MINUTE,
-                        '5M': Client.KLINE_INTERVAL_5MINUTE,
-                        '15M': Client.KLINE_INTERVAL_15MINUTE,
-                        '30M': Client.KLINE_INTERVAL_30MINUTE,
-                        '1H': Client.KLINE_INTERVAL_1HOUR,
-                        '2H': Client.KLINE_INTERVAL_2HOUR,
-                        '4H': Client.KLINE_INTERVAL_4HOUR,
-                        '6H': Client.KLINE_INTERVAL_6HOUR,
-                        '8H': Client.KLINE_INTERVAL_8HOUR,
-                        '12H': Client.KLINE_INTERVAL_12HOUR,
-                        '1D': Client.KLINE_INTERVAL_1DAY,
-                        '3D': Client.KLINE_INTERVAL_3DAY,
-                        '1W': Client.KLINE_INTERVAL_1WEEK,
-                        '1M': Client.KLINE_INTERVAL_1MONTH
-                    }.get(config.get_binance_interval())  # 매핑이 없으면 None 반환
+                        '1m': Client.KLINE_INTERVAL_1MINUTE,
+                        '3m': Client.KLINE_INTERVAL_3MINUTE,
+                        '5m': Client.KLINE_INTERVAL_5MINUTE,
+                        '15m': Client.KLINE_INTERVAL_15MINUTE,
+                        '30m': Client.KLINE_INTERVAL_30MINUTE,
+                        '1h': Client.KLINE_INTERVAL_1HOUR,
+                        '2h': Client.KLINE_INTERVAL_2HOUR,
+                        '4h': Client.KLINE_INTERVAL_4HOUR,
+                        '6h': Client.KLINE_INTERVAL_6HOUR,
+                        '8h': Client.KLINE_INTERVAL_8HOUR,
+                        '12h': Client.KLINE_INTERVAL_12HOUR,
+                        '1d': Client.KLINE_INTERVAL_1DAY,
+                        '3d': Client.KLINE_INTERVAL_3DAY,
+                        '1w': Client.KLINE_INTERVAL_1WEEK,
+                        '1mo': Client.KLINE_INTERVAL_1MONTH
+                    }.get(config.get_binance_interval(), Client.KLINE_INTERVAL_1DAY)  # 기본값 1일
                     
-                    if binance_interval is None:
-                        logging.error(f"Unsupported interval for Binance API: {config.interval}")
-                        continue
-
                     klines = self.client.get_historical_klines(
                         symbol,
                         binance_interval,
@@ -148,11 +146,11 @@ class CryptoDataFetcher:
                         df['symbol'] = symbol
                         
                         all_data.append(df)
-                        logging.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
+                        logger.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
                         time.sleep(1)  # API 제한 고려
                     
                 except Exception as e:
-                    logging.error(f"Error fetching {symbol}: {str(e)}")
+                    logger.error(f"Error fetching {symbol}: {str(e)}")
                     continue
 
             if all_data:
@@ -165,11 +163,6 @@ class CryptoDataFetcher:
                     existing_df = pd.read_parquet(existing_file)
                     df = pd.concat([existing_df, df]).drop_duplicates()
                 
-                # 숫자형 데이터 변환
-                numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-                for col in numeric_columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
-                
                 # Parquet 파일로 저장
                 df.to_parquet(self.data_dir / 'crypto.parquet')
                 
@@ -177,13 +170,13 @@ class CryptoDataFetcher:
                 tracker['crypto']['last_fetch_date'] = end_date
                 self._save_tracker(tracker)
                 
-                logging.info(f"Successfully saved crypto data from {start_date} to {end_date}")
+                logger.info(f"Successfully saved crypto data from {start_date} to {end_date}")
                 return True
             
             return False
 
         except Exception as e:
-            logging.error(f"Error in fetch_data: {str(e)}")
+            logger.error(f"Error in fetch_data: {str(e)}")
             return False
 
     def save_data(self, data):
@@ -193,7 +186,7 @@ class CryptoDataFetcher:
             data.to_parquet(self.data_dir / 'crypto.parquet')
             return True
         except Exception as e:
-            logging.error(f"Error saving crypto data: {str(e)}")
+            logger.error(f"Error saving crypto data: {str(e)}")
             return False
 
 if __name__ == "__main__":
