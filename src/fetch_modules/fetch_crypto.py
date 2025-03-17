@@ -83,7 +83,7 @@ class CryptoDataFetcher:
             
             # 날짜 설정
             if not start_date:
-                start_date = last_fetch or (datetime.now() - timedelta(days=3650)).strftime('%Y-%m-%d')
+                start_date = last_fetch or binance_launch_date
             if not end_date:
                 end_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -96,28 +96,33 @@ class CryptoDataFetcher:
             # 각 암호화폐별 데이터 수집
             for symbol in tracker['crypto']['symbols']:
                 try:
-                    # Binance API interval 형식으로 변환
-                    binance_interval = {
-                        '1m': Client.KLINE_INTERVAL_1MINUTE,
-                        '3m': Client.KLINE_INTERVAL_3MINUTE,
-                        '5m': Client.KLINE_INTERVAL_5MINUTE,
-                        '15m': Client.KLINE_INTERVAL_15MINUTE,
-                        '30m': Client.KLINE_INTERVAL_30MINUTE,
-                        '1h': Client.KLINE_INTERVAL_1HOUR,
-                        '2h': Client.KLINE_INTERVAL_2HOUR,
-                        '4h': Client.KLINE_INTERVAL_4HOUR,
-                        '6h': Client.KLINE_INTERVAL_6HOUR,
-                        '8h': Client.KLINE_INTERVAL_8HOUR,
-                        '12h': Client.KLINE_INTERVAL_12HOUR,
-                        '1d': Client.KLINE_INTERVAL_1DAY,
-                        '3d': Client.KLINE_INTERVAL_3DAY,
-                        '1w': Client.KLINE_INTERVAL_1WEEK,
-                        '1mo': Client.KLINE_INTERVAL_1MONTH
-                    }.get(config.get_binance_interval(), Client.KLINE_INTERVAL_1DAY)  # 기본값 1일
+                    # 기본 interval을 1일로 설정
+                    interval = Client.KLINE_INTERVAL_1DAY
+                    
+                    # 만약 config에서 interval이 설정되어 있다면 사용
+                    if hasattr(config, 'interval'):
+                        interval_map = {
+                            '1m': Client.KLINE_INTERVAL_1MINUTE,
+                            '3m': Client.KLINE_INTERVAL_3MINUTE,
+                            '5m': Client.KLINE_INTERVAL_5MINUTE,
+                            '15m': Client.KLINE_INTERVAL_15MINUTE,
+                            '30m': Client.KLINE_INTERVAL_30MINUTE,
+                            '1h': Client.KLINE_INTERVAL_1HOUR,
+                            '2h': Client.KLINE_INTERVAL_2HOUR,
+                            '4h': Client.KLINE_INTERVAL_4HOUR,
+                            '6h': Client.KLINE_INTERVAL_6HOUR,
+                            '8h': Client.KLINE_INTERVAL_8HOUR,
+                            '12h': Client.KLINE_INTERVAL_12HOUR,
+                            '1d': Client.KLINE_INTERVAL_1DAY,
+                            '3d': Client.KLINE_INTERVAL_3DAY,
+                            '1w': Client.KLINE_INTERVAL_1WEEK,
+                            '1mo': Client.KLINE_INTERVAL_1MONTH
+                        }
+                        interval = interval_map.get(config.interval.lower(), Client.KLINE_INTERVAL_1DAY)
                     
                     klines = self.client.get_historical_klines(
                         symbol,
-                        binance_interval,
+                        interval,
                         start_ts,
                         end_ts
                     )
@@ -135,11 +140,8 @@ class CryptoDataFetcher:
                         
                         # 데이터 타입 변환
                         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-                        df['open'] = pd.to_numeric(df['open'], errors='coerce')
-                        df['high'] = pd.to_numeric(df['high'], errors='coerce')
-                        df['low'] = pd.to_numeric(df['low'], errors='coerce')
-                        df['close'] = pd.to_numeric(df['close'], errors='coerce')
-                        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+                        for col in ['open', 'high', 'low', 'close', 'volume']:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
                         
                         # 컬럼명 변경
                         df = df.rename(columns={'timestamp': 'date'})
@@ -148,6 +150,8 @@ class CryptoDataFetcher:
                         all_data.append(df)
                         logger.info(f"Successfully fetched {symbol} from {start_date} to {end_date}")
                         time.sleep(1)  # API 제한 고려
+                    else:
+                        logger.warning(f"No data available for {symbol} in the specified date range")
                     
                 except Exception as e:
                     logger.error(f"Error fetching {symbol}: {str(e)}")
@@ -161,7 +165,8 @@ class CryptoDataFetcher:
                 existing_file = self.data_dir / 'crypto.parquet'
                 if existing_file.exists():
                     existing_df = pd.read_parquet(existing_file)
-                    df = pd.concat([existing_df, df]).drop_duplicates()
+                    df = pd.concat([existing_df, df]).drop_duplicates(subset=['date', 'symbol'])
+                    df = df.sort_values(['symbol', 'date'])
                 
                 # Parquet 파일로 저장
                 df.to_parquet(self.data_dir / 'crypto.parquet')
@@ -172,8 +177,9 @@ class CryptoDataFetcher:
                 
                 logger.info(f"Successfully saved crypto data from {start_date} to {end_date}")
                 return True
-            
-            return False
+            else:
+                logger.warning("No data was collected for any cryptocurrency")
+                return False
 
         except Exception as e:
             logger.error(f"Error in fetch_data: {str(e)}")
